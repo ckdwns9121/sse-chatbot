@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Message } from "../entitis/types/message";
+import { ChatMessage, ChatRole } from "@sse-chatbot/shared";
 
 const Chat = () => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
-      text: "안녕하세요! 무엇을 도와드릴까요?",
-      sender: "bot",
+      role: "assistant",
+      content: "안녕하세요! 무엇을 도와드릴까요?",
       timestamp: new Date(),
     },
   ]);
@@ -25,10 +25,10 @@ const Chat = () => {
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      text: inputText,
-      sender: "user",
+      role: "user",
+      content: inputText,
       timestamp: new Date(),
     };
 
@@ -38,10 +38,10 @@ const Chat = () => {
 
     // 간단한 봇 응답 시뮬레이션
     setTimeout(() => {
-      const botMessage: Message = {
+      const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        text: `"${inputText}"에 대한 응답입니다.`,
-        sender: "bot",
+        role: "assistant",
+        content: `"${inputText}"에 대한 응답입니다.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
@@ -71,9 +71,9 @@ const Chat = () => {
 
       <div className="messages-container">
         {messages.map((message) => (
-          <div key={message.id} className={`message ${message.sender === "user" ? "user-message" : "bot-message"}`}>
+          <div key={message.id} className={`message ${message.role === "user" ? "user-message" : "bot-message"}`}>
             <div className="message-content">
-              <div className="message-text">{message.text}</div>
+              <div className="message-text">{message.content}</div>
               <div className="message-time">{formatTime(message.timestamp)}</div>
             </div>
           </div>

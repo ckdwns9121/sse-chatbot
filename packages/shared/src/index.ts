@@ -11,3 +11,6 @@ export interface User {
   name: string;
   email: string;
 }
+
+// Export chat types
+export * from "./types/chat";

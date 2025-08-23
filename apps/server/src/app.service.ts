@@ -53,9 +53,11 @@ export class AppService {
     const memPercentage = Math.round((usedMem / totalMem) * 100); // 메모리 사용률 계산
 
     // 각 의존성 서비스의 상태를 병렬로 체크 (성능 최적화)
-    const dbCheck = await this.checkDatabaseConnection(); // 데이터베이스 연결 상태 확인
-    const redisCheck = await this.checkRedisConnection(); // Redis 연결 상태 확인
-    const externalApiCheck = await this.checkExternalApi(); // 외부 API 상태 확인
+    const [dbCheck, redisCheck, externalApiCheck] = await Promise.all([
+      this.checkDatabaseConnection(), // 데이터베이스 연결 상태 확인
+      this.checkRedisConnection(), // Redis 연결 상태 확인
+      this.checkExternalApi(), // 외부 API 상태 확인
+    ]);
 
     // 모든 체크 결과를 종합하여 최종 상태 결정
     return {

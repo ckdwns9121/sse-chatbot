@@ -39,7 +39,7 @@ export class OpenAIController {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
-      res.setHeader("Access-Control-Allow-Origin", process.env.CLIENT_ORIGIN || "http://localhost:3000");
+      res.setHeader("Access-Control-Allow-Origin", process.env.CLIENT_ORIGIN || "http://localhost:5173");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
       res.setHeader("X-Accel-Buffering", "no"); // Nginx 버퍼링 비활성화
 

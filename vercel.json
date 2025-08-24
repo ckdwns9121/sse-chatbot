@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "pnpm --filter=@sse-chatbot/server run build:vercel",
-  "outputDirectory": ".vercel/output",
-  "installCommand": "pnpm install",
-  "functions": {
-    "apps/server/src/main.ts": {
-      "maxDuration": 30
-    }
-  }
+  "installCommand": "npm install -g pnpm && pnpm install",
+  "buildCommand": "pnpm --filter=@sse-chatbot/server run build"
 }

@@ -1,16 +1,17 @@
-import './App.css'
+import "./App.css";
+import Chat from "./components/Chat";
 
 function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>🚀 Monorepo App</h1>
+        <h1>🚀 SSE 채팅봇</h1>
       </header>
       <main className="app-main">
-        <p>Welcome to the monorepo!</p>
+        <Chat />
       </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

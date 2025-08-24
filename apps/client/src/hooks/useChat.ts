@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage, ChatRequest, StreamingChunk } from "@sse-chatbot/shared";
 import { establishSSEConnection, sendStreamChatMessage, checkOpenAIStatus } from "@/api/api";
+import { useScrollBottom } from "./useScrollBottom";
+import { useCheckOpenAIStatus } from "./useCheckOpenAIStatus";
 
 export const useChat = () => {
+  const { messagesEndRef, scrollToBottom } = useScrollBottom();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -11,12 +14,11 @@ export const useChat = () => {
       timestamp: new Date(),
     },
   ]);
+  const { openAIStatus } = useCheckOpenAIStatus();
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [openAIStatus, setOpenAIStatus] = useState<{ apiKeyValid: boolean } | null>(null);
   const [sessionId, setSessionId] = useState<string>("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const tempBotMessageIdRef = useRef<string>("");
 
@@ -35,27 +37,9 @@ export const useChat = () => {
     setIsLoading(false);
   }, []);
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  // OpenAI 상태 확인
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const status = await checkOpenAIStatus();
-        setOpenAIStatus(status.data);
-      } catch (error) {
-        console.error("OpenAI 상태 확인 실패:", error);
-        setOpenAIStatus({ apiKeyValid: false });
-      }
-    };
-    checkStatus();
-  }, []);
+  }, [messages]);
 
   // SSE 메시지 수신 처리를 위한 콜백 함수 (메모이제이션)
   const handleSSEMessage = useCallback(

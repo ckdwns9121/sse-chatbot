@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Sse, Get, HttpException, HttpStatus, Logger } from "@nestjs/common";
+import { Controller, Post, Body, Sse, Get, HttpException, HttpStatus, Logger, UseGuards } from "@nestjs/common";
 import { Response } from "express";
 import { OpenAIService } from "./openai.service";
 import { ChatRequest, ChatResponse, StreamingChunk } from "@sse-chatbot/shared";
+import { OpenAIAuthGuard } from "../common";
 
 @Controller("api/v1/openai")
 export class OpenAIController {
@@ -18,15 +19,10 @@ export class OpenAIController {
    * 일반 채팅 응답 생성
    */
   @Post("chat")
+  @UseGuards(OpenAIAuthGuard)
   async chat(@Body() request: ChatRequest): Promise<ChatResponse> {
     try {
       this.logger.log(`Chat request received: ${request.messages.length} messages`);
-
-      // API 키 유효성 검증
-      const isValidKey = await this.openaiService.validateApiKey();
-      if (!isValidKey) {
-        throw new HttpException("OpenAI API 키가 유효하지 않습니다.", HttpStatus.UNAUTHORIZED);
-      }
 
       return await this.openaiService.generateChatResponse(request);
     } catch (error) {
@@ -44,15 +40,10 @@ export class OpenAIController {
    * 스트리밍 채팅 응답 생성
    */
   @Sse("chat/stream")
+  @UseGuards(OpenAIAuthGuard)
   async streamChat(@Body() request: ChatRequest) {
     try {
       this.logger.log(`Streaming chat request received: ${request.messages.length} messages`);
-
-      // API 키 유효성 검증
-      const isValidKey = await this.openaiService.validateApiKey();
-      if (!isValidKey) {
-        throw new Error("OpenAI API 키가 유효하지 않습니다.");
-      }
 
       // 스트리밍 응답 생성
       const stream = this.openaiService.generateStreamingResponse(request);
@@ -101,6 +92,7 @@ export class OpenAIController {
    * 사용 가능한 모델 목록 조회
    */
   @Get("models")
+  @UseGuards(OpenAIAuthGuard)
   async listModels() {
     try {
       this.logger.log("Models list request received");

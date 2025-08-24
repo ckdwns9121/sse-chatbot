@@ -1,5 +1,6 @@
 {
   "version": 2,
   "installCommand": "npm install -g pnpm && pnpm install",
-  "buildCommand": "pnpm --filter=@sse-chatbot/server run build"
+  "buildCommand": "npx turbo run build --filter=@sse-chatbot/server",
+  "outputDirectory": "apps/server/dist"
 }

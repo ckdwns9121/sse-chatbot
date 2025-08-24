@@ -2,6 +2,9 @@ import "dotenv/config"; // 환경변수 로드
 import { NestFactory } from "@nestjs/core";
 import { Logger } from "@nestjs/common";
 import { AppModule } from "./app.module";
+import serverlessExpress from "@vendia/serverless-express";
+
+let server: any;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -15,8 +18,31 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = process.env.PORT || 3001;
-  await app.listen(port);
-  logger.log(`🚀 Server is running on: http://localhost:${port}`);
+  await app.init();
+  const expressApp = app.getHttpAdapter().getInstance();
+  return serverlessExpress({ app: expressApp });
 }
-bootstrap();
+
+export const handler = async (event: any, context: any) => {
+  server = server ?? (await bootstrap());
+  return server(event, context);
+};
+
+// 로컬 개발용
+if (process.env.NODE_ENV !== "production") {
+  const app = NestFactory.create(AppModule);
+  const logger = new Logger("Bootstrap");
+
+  app.then(async (app) => {
+    app.enableCors({
+      origin: ["http://localhost:5173", "http://localhost:3000"],
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      credentials: true,
+    });
+
+    const port = process.env.PORT || 3001;
+    await app.listen(port, "0.0.0.0");
+    logger.log(`🚀 Server is running on: http://localhost:${port}`);
+  });
+}

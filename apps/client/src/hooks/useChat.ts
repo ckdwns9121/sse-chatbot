@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage, ChatRequest, StreamingChunk } from "@sse-chatbot/shared";
-import { establishSSEConnection, sendStreamChatMessage, checkOpenAIStatus } from "@/api/api";
+import { establishSSEConnection, sendStreamChatMessage } from "@/api/api";
 import { useScrollBottom } from "./useScrollBottom";
 import { useCheckOpenAIStatus } from "./useCheckOpenAIStatus";
 

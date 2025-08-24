@@ -6,8 +6,13 @@ export const useCheckOpenAIStatus = () => {
 
   useEffect(() => {
     const checkStatus = async () => {
-      const status = await checkOpenAIStatus();
-      setOpenAIStatus(status.data);
+      try {
+        const status = await checkOpenAIStatus();
+        setOpenAIStatus(status.data);
+      } catch (error) {
+        console.error("OpenAI 상태 확인 실패:", error);
+        setOpenAIStatus({ apiKeyValid: false });
+      }
     };
     checkStatus();
   }, []);

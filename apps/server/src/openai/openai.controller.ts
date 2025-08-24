@@ -23,6 +23,16 @@ export class OpenAIController {
   @UseGuards(OpenAIAuthGuard)
   async establishSSEConnection(@Query("sessionId") sessionId: string, @Res() res: Response) {
     try {
+      // sessionId 유효성 검사
+      if (!sessionId || sessionId.trim() === "") {
+        this.logger.warn("SSE connection request with no sessionId");
+        res.status(HttpStatus.BAD_REQUEST).json({
+          success: false,
+          message: "sessionId is required",
+        });
+        return;
+      }
+
       this.logger.log(`SSE connection established for session: ${sessionId}`);
 
       // SSE 표준 헤더 설정

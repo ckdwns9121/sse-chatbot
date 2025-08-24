@@ -32,6 +32,7 @@ export const establishSSEConnection = (
         }
       } catch (parseError) {
         console.error("JSON 파싱 오류:", parseError);
+        onError("JSON 파싱 오류가 발생했습니다.");
       }
     };
 

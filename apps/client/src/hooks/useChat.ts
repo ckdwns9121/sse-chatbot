@@ -17,6 +17,21 @@ export const useChat = () => {
   const [openAIStatus, setOpenAIStatus] = useState<{ apiKeyValid: boolean } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // 에러 처리 헬퍼 함수
+  const handleError = useCallback((error: string) => {
+    console.error("스트리밍 에러:", error);
+    setMessages((prev) => {
+      const newMessages = [...prev];
+      const lastMessage = newMessages[newMessages.length - 1];
+      if (lastMessage && lastMessage.role === "assistant") {
+        lastMessage.content = `오류가 발생했습니다: ${error}`;
+      }
+      return newMessages;
+    });
+    setIsStreaming(false);
+    setIsLoading(false);
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -98,31 +113,13 @@ export const useChat = () => {
         },
         (error: string) => {
           // 에러 발생
-          console.error("스트리밍 에러:", error);
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.role === "assistant") {
-              lastMessage.content = `오류가 발생했습니다: ${error}`;
-            }
-            return newMessages;
-          });
-          setIsStreaming(false);
-          setIsLoading(false);
+          handleError(error);
         }
       );
     } catch (error) {
       console.error("메시지 전송 실패:", error);
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage && lastMessage.role === "assistant") {
-          lastMessage.content = "메시지 전송에 실패했습니다. 다시 시도해주세요.";
-        }
-        return newMessages;
-      });
-      setIsStreaming(false);
-      setIsLoading(false);
+      const errorMessage = error instanceof Error ? error.message : "메시지 전송에 실패했습니다. 다시 시도해주세요.";
+      handleError(errorMessage);
     }
   }, [inputText, isLoading, isStreaming, messages]);
 

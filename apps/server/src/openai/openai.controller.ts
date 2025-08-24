@@ -58,7 +58,7 @@ export class OpenAIController {
       const stream = this.openaiService.generateStreamingResponse(request);
 
       return new ReadableStream({
-        async start(controller) {
+        start: async (controller) => {
           try {
             for await (const chunk of stream) {
               const data = `data: ${JSON.stringify(chunk)}\n\n`;

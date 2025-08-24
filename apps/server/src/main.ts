@@ -4,6 +4,34 @@ import { Logger } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import serverlessExpress from "@vendia/serverless-express";
 
+// AWS Lambda 타입 정의
+interface APIGatewayProxyEvent {
+  httpMethod: string;
+  path: string;
+  headers: Record<string, string>;
+  body: string | null;
+  queryStringParameters: Record<string, string> | null;
+  pathParameters: Record<string, string> | null;
+}
+
+interface Context {
+  functionName: string;
+  functionVersion: string;
+  invokedFunctionArn: string;
+  memoryLimitInMB: string;
+  awsRequestId: string;
+  logGroupName: string;
+  logStreamName: string;
+  getRemainingTimeInMillis(): number;
+}
+
+interface APIGatewayProxyResult {
+  statusCode: number;
+  headers: Record<string, string>;
+  body: string;
+  isBase64Encoded?: boolean;
+}
+
 let server: (event: any, context: any) => Promise<any>;
 
 async function bootstrap() {
@@ -35,7 +63,7 @@ if (process.env.NODE_ENV !== "production") {
 
   app.then(async (app) => {
     app.enableCors({
-      origin: ["http://localhost:5173", "http://localhost:3000"],
+      origin: ["http://localhost:3000"],
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
       credentials: true,

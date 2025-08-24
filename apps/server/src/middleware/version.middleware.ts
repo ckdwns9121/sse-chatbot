@@ -1,9 +1,11 @@
-import { Injectable, NestMiddleware } from "@nestjs/common";
+import { Injectable, NestMiddleware, Logger } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
 
 // API 버전별 미들웨어 - 모든 요청에 버전 정보를 헤더로 추가하고 로깅
 @Injectable()
 export class VersionMiddleware implements NestMiddleware {
+  private readonly logger = new Logger(VersionMiddleware.name);
+
   use(req: Request, res: Response, next: NextFunction) {
     // URL 경로를 '/' 기준으로 분할하여 분석
     const pathParts = req.path.split("/");
@@ -18,7 +20,7 @@ export class VersionMiddleware implements NestMiddleware {
     res.setHeader("X-API-Version", version);
 
     // 버전별 요청 로깅 (모니터링 및 디버깅용)
-    console.log(`[${version}] ${req.method} ${req.path}`);
+    this.logger.log(`[${version}] ${req.method} ${req.path}`);
 
     next(); // 다음 미들웨어나 컨트롤러로 요청 전달
   }

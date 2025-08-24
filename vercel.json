@@ -1,8 +1,0 @@
-{
-  "version": 2,
-  "functions": {
-    "apps/server/src/main.ts": {
-      "maxDuration": 30
-    }
-  }
-}

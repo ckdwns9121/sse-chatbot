@@ -7,20 +7,15 @@ export const postChat = async (request: ChatRequest): Promise<ChatResponse> => {
   return response.data;
 };
 
-// SSE 기반 스트리밍 채팅 API
-export const streamChat = (
-  request: ChatRequest,
+// SSE 연결 수립 (응답 수신 전용)
+export const establishSSEConnection = (
+  sessionId: string,
   onChunk: (chunk: StreamingChunk) => void,
-  onComplete: () => void,
   onError: (error: string) => void
-): (() => void) | undefined => {
+): (() => void) => {
   try {
-    // POST 요청을 위한 URLSearchParams 사용
-    const params = new URLSearchParams();
-    params.append("data", JSON.stringify(request));
-
     const eventSource = new EventSource(
-      `${axiosInstance.defaults.baseURL}/api/v1/openai/chat/stream?${params.toString()}`,
+      `${axiosInstance.defaults.baseURL}/api/v1/openai/chat/stream?sessionId=${sessionId}`,
       { withCredentials: false }
     );
 
@@ -31,12 +26,8 @@ export const streamChat = (
           const chunk: StreamingChunk = JSON.parse(event.data);
           onChunk(chunk);
 
-          if (chunk.type === "done" || chunk.type === "error") {
-            if (chunk.type === "error") {
-              onError(chunk.error || "스트리밍 오류가 발생했습니다.");
-            }
-            eventSource.close();
-            onComplete();
+          if (chunk.type === "error") {
+            onError(chunk.error || "스트리밍 오류가 발생했습니다.");
           }
         }
       } catch (parseError) {
@@ -47,9 +38,7 @@ export const streamChat = (
     // 에러 처리
     eventSource.onerror = (event) => {
       console.error("EventSource 에러:", event);
-      eventSource.close();
       onError("SSE 연결 중 오류가 발생했습니다.");
-      onComplete();
     };
 
     // 연결 열림 처리
@@ -57,17 +46,28 @@ export const streamChat = (
       console.log("SSE 연결이 열렸습니다.");
     };
 
-    // 연결 종료 시 정리
-    const cleanup = () => {
+    // 연결 종료 시 정리 함수 반환
+    return () => {
       eventSource.close();
     };
-
-    // 컴포넌트 언마운트 시 정리를 위한 함수 반환
-    return cleanup;
   } catch (error) {
     console.error("SSE 연결 오류:", error);
     onError(error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.");
-    onComplete();
+    return () => {}; // 빈 cleanup 함수 반환
+  }
+};
+
+// 스트리밍 채팅 메시지 전송 (POST 요청)
+export const sendStreamChatMessage = async (request: ChatRequest): Promise<void> => {
+  try {
+    const response = await axiosInstance.post("/api/v1/openai/chat/stream", request);
+
+    if (!response.data.success) {
+      throw new Error("스트리밍 메시지 전송에 실패했습니다.");
+    }
+  } catch (error) {
+    console.error("스트리밍 메시지 전송 오류:", error);
+    throw error;
   }
 };
 

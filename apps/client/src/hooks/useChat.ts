@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage, ChatRequest, StreamingChunk } from "@sse-chatbot/shared";
-import { streamChat, checkOpenAIStatus } from "@/api/api";
+import { establishSSEConnection, sendStreamChatMessage, checkOpenAIStatus } from "@/api/api";
 
 export const useChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -15,6 +15,7 @@ export const useChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [openAIStatus, setOpenAIStatus] = useState<{ apiKeyValid: boolean } | null>(null);
+  const [sessionId, setSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
@@ -55,8 +56,26 @@ export const useChat = () => {
     checkStatus();
   }, []);
 
-  // 컴포넌트 언마운트 시 cleanup 실행
+  // 컴포넌트 마운트 시 SSE 연결 수립
   useEffect(() => {
+    const newSessionId = `session_${Date.now()}`;
+    setSessionId(newSessionId);
+
+    // SSE 연결 수립
+    const cleanup = establishSSEConnection(
+      newSessionId,
+      (chunk: StreamingChunk) => {
+        console.log("SSE 메시지 수신:", chunk);
+        // 여기서는 메시지 처리하지 않음 (handleSendMessage에서 처리)
+      },
+      (error: string) => {
+        console.error("SSE 연결 오류:", error);
+      }
+    );
+
+    cleanupRef.current = cleanup;
+
+    // 컴포넌트 언마운트 시 cleanup 실행
     return () => {
       if (cleanupRef.current) {
         cleanupRef.current();
@@ -94,7 +113,7 @@ export const useChat = () => {
     try {
       const chatRequest: ChatRequest = {
         messages: [...messages, userMessage],
-        sessionId: `session_${Date.now()}`,
+        sessionId: sessionId,
         modelConfig: {
           model: "gpt-3.5-turbo",
           temperature: 0.7,
@@ -110,8 +129,9 @@ export const useChat = () => {
         cleanupRef.current();
       }
 
-      const cleanup = streamChat(
-        chatRequest,
+      // SSE 연결 수립 (한 번만)
+      const cleanup = establishSSEConnection(
+        chatRequest.sessionId!,
         (chunk: StreamingChunk) => {
           console.log(chunk);
           if (chunk.type === "text") {
@@ -120,13 +140,12 @@ export const useChat = () => {
                 message.id === tempBotMessageId ? { ...message, content: message.content + chunk.content } : message
               )
             );
+          } else if (chunk.type === "done") {
+            // 스트리밍 완료
+            setIsStreaming(false);
+            setIsLoading(false);
+            cleanupRef.current = null;
           }
-        },
-        () => {
-          // 스트리밍 완료
-          setIsStreaming(false);
-          setIsLoading(false);
-          cleanupRef.current = null;
         },
         (error: string) => {
           // 에러 발생
@@ -136,8 +155,14 @@ export const useChat = () => {
       );
 
       // cleanup 함수를 저장
-      if (cleanup) {
-        cleanupRef.current = cleanup;
+      cleanupRef.current = cleanup;
+
+      // POST 요청으로 메시지 전송
+      try {
+        await sendStreamChatMessage(chatRequest);
+      } catch (error) {
+        console.error("메시지 전송 실패:", error);
+        handleError("메시지 전송에 실패했습니다.");
       }
     } catch (error) {
       console.error("메시지 전송 실패:", error);

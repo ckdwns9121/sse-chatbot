@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, HttpException, HttpStatus, Logger, UseGuards, Res } from "@nestjs/common";
+import { Controller, Post, Body, Get, HttpException, HttpStatus, Logger, UseGuards, Res, Query } from "@nestjs/common";
 import { Response } from "express";
 import { OpenAIService } from "./openai.service";
 import { ChatRequest, ChatResponse, StreamingChunk } from "@sse-chatbot/shared";
@@ -37,20 +37,28 @@ export class OpenAIController {
   }
 
   /**
-   * 스트리밍 채팅 응답 생성
+   * SSE 기반 스트리밍 채팅 응답 생성
    */
-  @Post("chat/stream")
+  @Get("chat/stream")
   @UseGuards(OpenAIAuthGuard)
-  async streamChat(@Body() request: ChatRequest, @Res() res: Response) {
+  async streamChat(@Query("data") data: string, @Res() res: Response) {
     try {
-      this.logger.log(`Streaming chat request received: ${request.messages.length} messages`);
+      const request: ChatRequest = JSON.parse(decodeURIComponent(data));
+      console.log(request);
+      this.logger.log(`SSE streaming chat request received: ${request.messages.length} messages`);
 
-      // CORS 헤더 설정
-      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      // SSE 표준 헤더 설정
+      res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      res.setHeader("X-Accel-Buffering", "no"); // Nginx 버퍼링 비활성화
+
+      // 연결 유지를 위한 heartbeat 전송
+      const heartbeat = setInterval(() => {
+        res.write(": heartbeat\n\n");
+      }, 30000); // 30초마다 heartbeat
 
       // 스트리밍 응답 생성
       const stream = this.openaiService.generateStreamingResponse(request);
@@ -62,20 +70,23 @@ export class OpenAIController {
 
         // 에러가 발생하면 스트림 종료
         if (chunk.type === "error") {
+          clearInterval(heartbeat);
           res.end();
           return;
         }
 
         // 완료되면 스트림 종료
         if (chunk.type === "done") {
+          clearInterval(heartbeat);
           res.end();
           return;
         }
       }
 
+      clearInterval(heartbeat);
       res.end();
     } catch (error) {
-      this.logger.error("Stream chat error:", error);
+      this.logger.error("SSE stream chat error:", error);
 
       const errorChunk: StreamingChunk = {
         type: "error",

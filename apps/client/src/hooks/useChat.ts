@@ -16,6 +16,7 @@ export const useChat = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [openAIStatus, setOpenAIStatus] = useState<{ apiKeyValid: boolean } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   // 에러 처리 헬퍼 함수
   const handleError = useCallback((error: string) => {
@@ -52,6 +53,16 @@ export const useChat = () => {
       }
     };
     checkStatus();
+  }, []);
+
+  // 컴포넌트 언마운트 시 cleanup 실행
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
   }, []);
 
   const handleSendMessage = useCallback(async () => {
@@ -94,7 +105,12 @@ export const useChat = () => {
         },
       };
 
-      await streamChat(
+      // 이전 연결이 있다면 정리
+      if (cleanupRef.current) {
+        cleanupRef.current();
+      }
+
+      const cleanup = streamChat(
         chatRequest,
         (chunk: StreamingChunk) => {
           console.log(chunk);
@@ -110,12 +126,19 @@ export const useChat = () => {
           // 스트리밍 완료
           setIsStreaming(false);
           setIsLoading(false);
+          cleanupRef.current = null;
         },
         (error: string) => {
           // 에러 발생
           handleError(error);
+          cleanupRef.current = null;
         }
       );
+
+      // cleanup 함수를 저장
+      if (cleanup) {
+        cleanupRef.current = cleanup;
+      }
     } catch (error) {
       console.error("메시지 전송 실패:", error);
       const errorMessage = error instanceof Error ? error.message : "메시지 전송에 실패했습니다. 다시 시도해주세요.";

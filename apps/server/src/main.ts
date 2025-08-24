@@ -4,7 +4,7 @@ import { Logger } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import serverlessExpress from "@vendia/serverless-express";
 
-let server: any;
+let server: (event: any, context: any) => any;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

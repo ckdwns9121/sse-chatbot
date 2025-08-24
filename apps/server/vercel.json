@@ -3,18 +3,6 @@
   "buildCommand": "cd ../.. && pnpm --filter=@sse-chatbot/server run build:vercel",
   "outputDirectory": ".vercel/output",
   "installCommand": "cd ../.. && pnpm install",
-  "builds": [
-    {
-      "src": "src/main.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "src/main.ts"
-    }
-  ],
   "functions": {
     "src/main.ts": {
       "maxDuration": 30

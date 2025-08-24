@@ -18,6 +18,7 @@ export const useChat = () => {
   const [sessionId, setSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const tempBotMessageIdRef = useRef<string>("");
 
   // 에러 처리 헬퍼 함수
   const handleError = useCallback((error: string) => {
@@ -56,22 +57,46 @@ export const useChat = () => {
     checkStatus();
   }, []);
 
-  // 컴포넌트 마운트 시 SSE 연결 수립
+  // SSE 메시지 수신 처리를 위한 콜백 함수 (메모이제이션)
+  const handleSSEMessage = useCallback(
+    (chunk: StreamingChunk) => {
+      console.log("SSE 메시지 수신:", chunk);
+
+      if (chunk.type === "text") {
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === tempBotMessageIdRef.current
+              ? { ...message, content: message.content + chunk.content }
+              : message
+          )
+        );
+      } else if (chunk.type === "done") {
+        // 스트리밍 완료
+        setIsStreaming(false);
+        setIsLoading(false);
+      } else if (chunk.type === "error") {
+        handleError(chunk.error || "스트리밍 오류가 발생했습니다.");
+      }
+    },
+    [handleError]
+  );
+
+  // SSE 에러 처리를 위한 콜백 함수 (메모이제이션)
+  const handleSSEError = useCallback(
+    (error: string) => {
+      console.error("SSE 연결 오류:", error);
+      handleError(error);
+    },
+    [handleError]
+  );
+
+  // 컴포넌트 마운트 시 SSE 연결 수립 (한 번만)
   useEffect(() => {
     const newSessionId = `session_${Date.now()}`;
     setSessionId(newSessionId);
 
     // SSE 연결 수립
-    const cleanup = establishSSEConnection(
-      newSessionId,
-      (chunk: StreamingChunk) => {
-        console.log("SSE 메시지 수신:", chunk);
-        // 여기서는 메시지 처리하지 않음 (handleSendMessage에서 처리)
-      },
-      (error: string) => {
-        console.error("SSE 연결 오류:", error);
-      }
-    );
+    const cleanup = establishSSEConnection(newSessionId, handleSSEMessage, handleSSEError);
 
     cleanupRef.current = cleanup;
 
@@ -82,7 +107,7 @@ export const useChat = () => {
         cleanupRef.current = null;
       }
     };
-  }, []);
+  }, [handleSSEMessage, handleSSEError]);
 
   const handleSendMessage = useCallback(async () => {
     if (!inputText.trim() || isLoading || isStreaming) return;
@@ -101,6 +126,8 @@ export const useChat = () => {
 
     // 스트리밍 응답을 위한 임시 메시지 생성
     const tempBotMessageId = (Date.now() + 1).toString();
+    tempBotMessageIdRef.current = tempBotMessageId;
+
     const tempBotMessage: ChatMessage = {
       id: tempBotMessageId,
       role: "assistant",
@@ -124,52 +151,14 @@ export const useChat = () => {
         },
       };
 
-      // 이전 연결이 있다면 정리
-      if (cleanupRef.current) {
-        cleanupRef.current();
-      }
-
-      // SSE 연결 수립 (한 번만)
-      const cleanup = establishSSEConnection(
-        chatRequest.sessionId!,
-        (chunk: StreamingChunk) => {
-          console.log(chunk);
-          if (chunk.type === "text") {
-            setMessages((prev) =>
-              prev.map((message) =>
-                message.id === tempBotMessageId ? { ...message, content: message.content + chunk.content } : message
-              )
-            );
-          } else if (chunk.type === "done") {
-            // 스트리밍 완료
-            setIsStreaming(false);
-            setIsLoading(false);
-            cleanupRef.current = null;
-          }
-        },
-        (error: string) => {
-          // 에러 발생
-          handleError(error);
-          cleanupRef.current = null;
-        }
-      );
-
-      // cleanup 함수를 저장
-      cleanupRef.current = cleanup;
-
-      // POST 요청으로 메시지 전송
-      try {
-        await sendStreamChatMessage(chatRequest);
-      } catch (error) {
-        console.error("메시지 전송 실패:", error);
-        handleError("메시지 전송에 실패했습니다.");
-      }
+      // POST 요청으로 메시지 전송 (SSE 연결은 이미 수립되어 있음)
+      await sendStreamChatMessage(chatRequest);
     } catch (error) {
       console.error("메시지 전송 실패:", error);
       const errorMessage = error instanceof Error ? error.message : "메시지 전송에 실패했습니다. 다시 시도해주세요.";
       handleError(errorMessage);
     }
-  }, [inputText, isLoading, isStreaming, messages]);
+  }, [inputText, isLoading, isStreaming, messages, sessionId, handleError]);
 
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {

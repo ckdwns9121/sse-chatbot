@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Sse, Get, HttpException, HttpStatus, Logger, UseGuards } from "@nestjs/common";
+import { Controller, Post, Body, Get, HttpException, HttpStatus, Logger, UseGuards, Res } from "@nestjs/common";
 import { Response } from "express";
 import { OpenAIService } from "./openai.service";
 import { ChatRequest, ChatResponse, StreamingChunk } from "@sse-chatbot/shared";
@@ -39,52 +39,52 @@ export class OpenAIController {
   /**
    * 스트리밍 채팅 응답 생성
    */
-  @Sse("chat/stream")
+  @Post("chat/stream")
   @UseGuards(OpenAIAuthGuard)
-  async streamChat(@Body() request: ChatRequest) {
+  async streamChat(@Body() request: ChatRequest, @Res() res: Response) {
     try {
       this.logger.log(`Streaming chat request received: ${request.messages.length} messages`);
+
+      // CORS 헤더 설정
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
       // 스트리밍 응답 생성
       const stream = this.openaiService.generateStreamingResponse(request);
 
-      return new ReadableStream({
-        start: async (controller) => {
-          try {
-            for await (const chunk of stream) {
-              const data = `data: ${JSON.stringify(chunk)}\n\n`;
-              controller.enqueue(new TextEncoder().encode(data));
+      // 스트리밍 응답 전송
+      for await (const chunk of stream) {
+        const data = `data: ${JSON.stringify(chunk)}\n\n`;
+        res.write(data);
 
-              // 에러가 발생하면 스트림 종료
-              if (chunk.type === "error") {
-                controller.close();
-                break;
-              }
+        // 에러가 발생하면 스트림 종료
+        if (chunk.type === "error") {
+          res.end();
+          return;
+        }
 
-              // 완료되면 스트림 종료
-              if (chunk.type === "done") {
-                controller.close();
-                break;
-              }
-            }
-          } catch (error) {
-            this.logger.error("Streaming error:", error);
-            const errorChunk: StreamingChunk = {
-              type: "error",
-              error: `스트리밍 처리 중 오류가 발생했습니다: ${error.message}`,
-            };
-            const data = `data: ${JSON.stringify(errorChunk)}\n\n`;
-            controller.enqueue(new TextEncoder().encode(data));
-            controller.close();
-          }
-        },
-      });
+        // 완료되면 스트림 종료
+        if (chunk.type === "done") {
+          res.end();
+          return;
+        }
+      }
+
+      res.end();
     } catch (error) {
       this.logger.error("Stream chat error:", error);
-      throw new HttpException(
-        `스트리밍 채팅 처리 중 오류가 발생했습니다: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
+
+      const errorChunk: StreamingChunk = {
+        type: "error",
+        error: `스트리밍 처리 중 오류가 발생했습니다: ${error.message}`,
+      };
+
+      const data = `data: ${JSON.stringify(errorChunk)}\n\n`;
+      res.write(data);
+      res.end();
     }
   }
 

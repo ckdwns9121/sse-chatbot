@@ -8,6 +8,8 @@ const Chat = () => {
     messages,
     inputText,
     isLoading,
+    isStreaming,
+    openAIStatus,
     messagesEndRef,
     setInputText,
     handleSendMessage,
@@ -17,13 +19,19 @@ const Chat = () => {
 
   return (
     <div className="chat-container">
-      <ChatHeader />
+      <ChatHeader openAIStatus={openAIStatus} />
 
-      <MessageList messages={messages} isLoading={isLoading} messagesEndRef={messagesEndRef} formatTime={formatTime} />
+      <MessageList
+        messages={messages}
+        isLoading={isLoading}
+        isStreaming={isStreaming}
+        messagesEndRef={messagesEndRef}
+        formatTime={formatTime}
+      />
 
       <MessageInput
         inputText={inputText}
-        isLoading={isLoading}
+        isLoading={isLoading || isStreaming}
         onInputChange={setInputText}
         onSendMessage={handleSendMessage}
         onKeyPress={handleKeyPress}

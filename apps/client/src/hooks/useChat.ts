@@ -94,7 +94,7 @@ export const useChat = () => {
   }, [handleSSEMessage, handleSSEError]);
 
   const handleSendMessage = useCallback(async () => {
-    if (!inputText.trim() || isLoading || isStreaming) return;
+    if (!inputText.trim() || isLoading || isStreaming || !isSseConnected) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
